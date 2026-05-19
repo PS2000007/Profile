@@ -58,8 +58,8 @@ const CONFIG = {
 
   /* ── PERSONAL INFO ──────────────────────────────────────── */
   personal: {
-    name:       'Surya Vanshi Prasad',
-    nameShort:  'SVP',
+    name:       'Prasad Bapusaheb Suryavanshi',
+    nameShort:  'PBS',
     title:      'Full Stack Developer',
     tagline:    'Building the future, one commit at a time.',
     bio: [
@@ -78,7 +78,7 @@ const CONFIG = {
     ],
     // Contact & social
     email:    'suryavanshiprasad007@gmail.com',
-    phone:    '+91 XXXXX XXXXX',
+    phone:    '+918975674089',
     location: 'India — Open to Remote',
     linkedin: 'https://linkedin.com/in/suryavanshiprasad',
     github:   'https://github.com/suryavanshiprasad007',
