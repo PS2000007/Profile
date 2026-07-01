@@ -23,6 +23,36 @@ gsap.registerPlugin(ScrollTrigger);
 // Global GSAP defaults — smooth, professional easing
 gsap.defaults({ ease: 'power3.out', duration: 0.8 });
 
+/* ── Smooth momentum scrolling (Lenis) ──────────────────
+   Drives the page through GSAP's ticker so ScrollTrigger
+   reveals glide instead of snapping. Falls back to native
+   scrolling if Lenis is unavailable or motion is reduced. */
+let lenis = null;
+function initSmoothScroll() {
+  if (!window.Lenis) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  lenis = new Lenis({
+    duration: 1.15,
+    easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),  // smooth expo-out
+    smoothWheel: true,
+    smoothTouch: false,                                       // native on touch = reliable
+    wheelMultiplier: 0.9,
+    touchMultiplier: 1.4,
+  });
+
+  lenis.on('scroll', ScrollTrigger.update);
+  gsap.ticker.add(time => lenis.raf(time * 1000));
+  gsap.ticker.lagSmoothing(0);
+}
+
+/* Smoothly scroll to a target (element or position) using Lenis when present. */
+function smoothScrollTo(target, opts = {}) {
+  if (lenis) { lenis.scrollTo(target, { duration: 1.2, offset: 0, ...opts }); return; }
+  if (typeof target === 'number') { window.scrollTo({ top: target, behavior: 'smooth' }); return; }
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 /* ════════════════════════════════════════════════════
    2. THEME
 ════════════════════════════════════════════════════ */
@@ -63,7 +93,7 @@ gsap.defaults({ ease: 'power3.out', duration: 0.8 });
   document.addEventListener('mousedown', () => gsap.to(cursor, { scale: 0.75, duration: 0.12 }));
   document.addEventListener('mouseup',   () => gsap.to(cursor, { scale: 1,    duration: 0.4, ease: 'back.out(3)' }));
 
-  qsa('a,button,.tag,.pill,.project-card,.skill-group,.cert-card,.info-card,.timeline__card').forEach(el => {
+  qsa('a,button,.tag,.pill,.project-card,.skill-group,.cert-card,.edu-card,.info-card,.timeline__card').forEach(el => {
     el.addEventListener('mouseenter', () => gsap.to(cursor, { scale: 1.7, duration: 0.3, ease: 'back.out(2)' }));
     el.addEventListener('mouseleave', () => gsap.to(cursor, { scale: 1,   duration: 0.3, ease: 'back.out(2)' }));
   });
@@ -119,16 +149,27 @@ gsap.defaults({ ease: 'power3.out', duration: 0.8 });
 (function initScrollUI() {
   const bar = $('scrollProgress'), nav = $('nav');
   const sections = qsa('section[id]'), links = qsa('.nav__links a');
+  const toTop = $('toTop'), toTopProg = $('toTopProg');
+  const RING = 2 * Math.PI * 20;            // r = 20
+  if (toTopProg) toTopProg.style.strokeDasharray = RING;
 
   window.addEventListener('scroll', () => {
-    const pct = scrollY / (document.body.scrollHeight - innerHeight) * 100;
-    bar.style.width = pct + '%';
+    const max = document.body.scrollHeight - innerHeight;
+    const ratio = max > 0 ? scrollY / max : 0;
+    bar.style.width = (ratio * 100) + '%';
     nav.classList.toggle('scrolled', scrollY > 40);
+
+    if (toTop) {
+      toTopProg.style.strokeDashoffset = RING * (1 - ratio);
+      toTop.classList.toggle('show', scrollY > 600);
+    }
 
     let cur = '';
     sections.forEach(s => { if (scrollY >= s.offsetTop - 160) cur = s.id; });
     links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + cur));
   }, { passive: true });
+
+  if (toTop) toTop.addEventListener('click', () => smoothScrollTo(0));
 })();
 
 /* ════════════════════════════════════════════════════
@@ -224,11 +265,11 @@ function initScrollReveal() {
   if (aboutCards.length) st(aboutCards,
     { x: 40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, stagger: 0.1, ease: 'power3.out' });
 
-  // Skill groups
+  // Skill groups — rise & tilt up in 3D
   const skillGroups = qsa('.skill-group');
   if (skillGroups.length) st(skillGroups,
-    { y: 60, opacity: 0, scale: 0.92 },
-    { y: 0,  opacity: 1, scale: 1, duration: 0.8, stagger: 0.1, ease: 'back.out(1.4)' });
+    { y: 70, opacity: 0, rotationX: -24, transformPerspective: 900, transformOrigin: '50% 100%' },
+    { y: 0,  opacity: 1, rotationX: 0, duration: 0.9, stagger: 0.1, ease: 'power3.out' });
 
   // Timeline items
   qsa('.timeline__item').forEach((item, i) =>
@@ -236,21 +277,28 @@ function initScrollReveal() {
       { x: i % 2 === 0 ? -50 : 50, opacity: 0 },
       { x: 0, opacity: 1, duration: 0.8, ease: 'power3.out' }));
 
-  // Featured project cards
+  // Featured project cards — rise & tilt up in 3D
   const featuredCards = qsa('.project-card');
   if (featuredCards.length) st(featuredCards,
-    { y: 70, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, stagger: 0.12, ease: 'power3.out' });
+    { y: 80, opacity: 0, rotationX: -20, transformPerspective: 1000, transformOrigin: '50% 100%' },
+    { y: 0,  opacity: 1, rotationX: 0, duration: 0.9, stagger: 0.12, ease: 'power3.out' });
 
   // Small project cards
   const smallCards = qsa('.project-small');
   if (smallCards.length) st(smallCards,
     { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, stagger: 0.08, ease: 'power2.out' });
 
-  // Cert cards
+  // Education cards — swing in on the Y axis
+  const eduCards = qsa('.edu-card');
+  if (eduCards.length) st(eduCards,
+    { y: 50, opacity: 0, rotationY: -18, transformPerspective: 1000, transformOrigin: '0% 50%' },
+    { y: 0,  opacity: 1, rotationY: 0, duration: 0.9, stagger: 0.14, ease: 'power3.out' });
+
+  // Cert cards — flip in on the Y axis
   const certCards = qsa('.cert-card');
   if (certCards.length) st(certCards,
-    { scale: 0.8, opacity: 0 },
-    { scale: 1,   opacity: 1, duration: 0.7, stagger: 0.1, ease: 'back.out(1.8)' });
+    { opacity: 0, rotationY: -55, scale: 0.9, transformPerspective: 800, transformOrigin: '50% 50%' },
+    { opacity: 1, rotationY: 0, scale: 1, duration: 0.8, stagger: 0.1, ease: 'power3.out' });
 
   // Contact items
   const cItems = qsa('.contact__item');
@@ -318,8 +366,8 @@ function initHoverAnimations() {
     card.addEventListener('mouseleave', () => yTo(0));
   });
 
-  // Small project & cert cards
-  qsa('.project-small, .cert-card').forEach(card => {
+  // Small project, cert & education cards
+  qsa('.project-small, .cert-card, .edu-card').forEach(card => {
     const yTo = gsap.quickTo(card, 'y', { duration: 0.35, ease: 'back.out(2)' });
     card.addEventListener('mouseenter', () => yTo(-6));
     card.addEventListener('mouseleave', () => yTo(0));
@@ -374,17 +422,47 @@ function initHoverAnimations() {
 ════════════════════════════════════════════════════ */
 function initTilt(el) {
   if (!C.theme.enableTilt) return;
-  el.style.transformStyle = 'preserve-3d';
-  const rxTo = gsap.quickTo(el, 'rotateX', { duration: 0.3, ease: 'power2.out' });
-  const ryTo = gsap.quickTo(el, 'rotateY', { duration: 0.3, ease: 'power2.out' });
+  if (matchMedia('(hover: none)').matches) return;   // skip on touch
+  gsap.set(el, { transformPerspective: 900, transformStyle: 'preserve-3d', transformOrigin: 'center' });
+
+  const ease = 'power3.out';
+  const rxTo = gsap.quickTo(el, 'rotationX', { duration: 0.5, ease });
+  const ryTo = gsap.quickTo(el, 'rotationY', { duration: 0.5, ease });
+  const zTo  = gsap.quickTo(el, 'z',         { duration: 0.5, ease });
+  const sTo  = gsap.quickTo(el, 'scale',     { duration: 0.5, ease });
+  const MAX = 9;
 
   el.addEventListener('mousemove', e => {
     const r = el.getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width  - 0.5;
     const y = (e.clientY - r.top)  / r.height - 0.5;
-    rxTo(-y * 10); ryTo(x * 10);
+    rxTo(-y * MAX); ryTo(x * MAX);
   });
-  el.addEventListener('mouseleave', () => { rxTo(0); ryTo(0); });
+  el.addEventListener('mouseenter', () => {
+    gsap.set(el, { transformOrigin: 'center' });   // reset origin left by the 3D entrance reveal
+    zTo(38); sTo(1.015);                            // card lifts toward you
+  });
+  el.addEventListener('mouseleave', () => { rxTo(0); ryTo(0); zTo(0); sTo(1); });
+}
+
+/* ════════════════════════════════════════════════════
+   11b. AVATAR 3D — floats & tilts in space with the mouse
+════════════════════════════════════════════════════ */
+function initAvatar3D() {
+  const wrap = qs('.avatar-wrap');
+  if (!wrap || matchMedia('(hover: none)').matches) return;
+  gsap.set(wrap, { transformPerspective: 1000, transformStyle: 'preserve-3d' });
+  const rxTo = gsap.quickTo(wrap, 'rotationX', { duration: 1,   ease: 'power2.out' });
+  const ryTo = gsap.quickTo(wrap, 'rotationY', { duration: 1,   ease: 'power2.out' });
+  const xTo  = gsap.quickTo(wrap, 'x',         { duration: 1.2, ease: 'power2.out' });
+
+  window.addEventListener('mousemove', e => {
+    const dx = e.clientX / innerWidth  - 0.5;
+    const dy = e.clientY / innerHeight - 0.5;
+    ryTo(dx * 18);
+    rxTo(-dy * 18);
+    xTo(dx * 12);                 // gentle horizontal drift (vertical is owned by scroll parallax)
+  }, { passive: true });
 }
 
 /* ════════════════════════════════════════════════════
@@ -400,14 +478,7 @@ function initParallax() {
     });
   }
 
-  // Mouse parallax on avatar
-  document.addEventListener('mousemove', e => {
-    if (!wrap) return;
-    const xTo = gsap.quickTo(wrap, 'x', { duration: 1.2, ease: 'power1.out' });
-    const yTo = gsap.quickTo(wrap, 'y', { duration: 1.2, ease: 'power1.out' });
-    xTo((e.clientX / innerWidth  - 0.5) * 14);
-    yTo((e.clientY / innerHeight - 0.5) * 14);
-  });
+  // (avatar mouse parallax handled in 3D by initAvatar3D)
 
   // Subtle section title parallax
   qsa('.section__title').forEach(el => {
@@ -416,6 +487,80 @@ function initParallax() {
       scrollTrigger: { trigger: el.closest('.section'), start: 'top bottom', end: 'bottom top', scrub: 1.5 }
     });
   });
+}
+
+/* ════════════════════════════════════════════════════
+   12b. MAGNETIC ELEMENTS — pull toward the cursor
+════════════════════════════════════════════════════ */
+function initMagnetic() {
+  if (matchMedia('(hover: none)').matches) return;
+  qsa('.nav__cta, .hero__actions .btn--primary, .footer__socials a, [data-magnetic]').forEach(el => {
+    const strength = 0.45;
+    const xTo = gsap.quickTo(el, 'x', { duration: 0.5, ease: 'power3.out' });
+    const yTo = gsap.quickTo(el, 'y', { duration: 0.5, ease: 'power3.out' });
+    el.addEventListener('mousemove', e => {
+      const r = el.getBoundingClientRect();
+      xTo((e.clientX - (r.left + r.width  / 2)) * strength);
+      yTo((e.clientY - (r.top  + r.height / 2)) * strength);
+    });
+    el.addEventListener('mouseleave', () => { xTo(0); yTo(0); });
+  });
+}
+
+/* ════════════════════════════════════════════════════
+   12c. CARD SPOTLIGHT — radial glow follows the pointer
+════════════════════════════════════════════════════ */
+function initSpotlight() {
+  if (matchMedia('(hover: none)').matches) return;
+  qsa('.skill-group, .project-card, .cert-card, .edu-card, .timeline__card').forEach(card => {
+    card.addEventListener('mousemove', e => {
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+      card.style.setProperty('--my', (e.clientY - r.top)  + 'px');
+    });
+  });
+}
+
+/* ════════════════════════════════════════════════════
+   12d. PRELOADER — count up, then lift the curtain
+════════════════════════════════════════════════════ */
+function setHeroInitialState() {
+  gsap.set('#nav', { y: -80, opacity: 0 });
+  const heroEls = ['.hero__eyebrow', '.hero__name', '.hero__role', '.hero__tagline', '.hero__actions', '.hero__stats']
+    .map(s => qs(s)).filter(Boolean);
+  gsap.set(heroEls, { y: 50, opacity: 0 });
+  gsap.set('.hero__visual', { scale: 0.6, opacity: 0 });
+  gsap.set('.hero__scroll-hint', { opacity: 0, y: 16 });
+}
+
+function initPreloader(done) {
+  const pre = $('preloader');
+  if (!pre) { done(); return; }
+  const logo = $('preloaderLogo'), fill = $('preloaderFill'), pct = $('preloaderPct');
+  if (logo) logo.textContent = C.personal.name;
+
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    pre.style.display = 'none';
+    done();
+    return;
+  }
+
+  const counter = { v: 0 };
+  const tl = gsap.timeline();
+  tl.to(counter, {
+    v: 100, duration: 1.5, ease: 'power2.inOut',
+    onUpdate() {
+      const n = Math.round(counter.v);
+      if (pct)  pct.textContent = n + '%';
+      if (fill) fill.style.width = n + '%';
+    }
+  });
+  tl.to('.preloader__inner', { opacity: 0, y: -24, duration: 0.4, ease: 'power2.in' }, '+=0.12');
+  tl.to(pre, {
+    yPercent: -100, duration: 0.8, ease: 'power4.inOut',
+    onStart: () => done(),                       // launch hero entrance as the curtain lifts
+    onComplete() { pre.style.display = 'none'; }
+  }, '-=0.05');
 }
 
 /* ════════════════════════════════════════════════════
@@ -476,30 +621,22 @@ function initParallax() {
 })();
 
 /* ════════════════════════════════════════════════════
-   16. CONTACT FORM + NOTIFICATIONS
+   16. CONTACT FORM — WhatsApp / Email channel picker
 ════════════════════════════════════════════════════ */
-(function initEmailJS() {
-  const cfg = C.notifications?.email;
-  if (cfg?.enabled && cfg.publicKey && window.emailjs) emailjs.init(cfg.publicKey);
-})();
 
-async function sendWhatsApp(name, email, subject, message) {
-  const cfg = C.notifications?.whatsapp;
-  if (!cfg?.enabled || !cfg.phone || cfg.apiKey === 'XXXXXXX') return;
-  const text = encodeURIComponent(
-    `📬 *New Portfolio Message*\n\n👤 *Name:* ${name}\n📧 *Email:* ${email}\n📌 *Subject:* ${subject || '—'}\n\n💬 *Message:*\n${message}\n\n⏰ ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`
-  );
-  try { await fetch(`https://api.callmebot.com/whatsapp.php?phone=${cfg.phone}&text=${text}&apikey=${cfg.apiKey}`, { mode: 'no-cors' }); } catch (_) {}
-}
+/* Recipient — pulled from CONFIG so it stays in sync */
+const WA_PHONE = (C.personal.phone || '').replace(/\D/g, '');   // digits only, e.g. 918975674089
+const TO_EMAIL = C.personal.email;
 
-async function sendEmail(name, email, subject, message) {
-  const cfg = C.notifications?.email;
-  if (!cfg?.enabled || cfg.serviceId.includes('XXXXX') || !window.emailjs) return;
-  await emailjs.send(cfg.serviceId, cfg.templateId, {
-    from_name: name, from_email: email,
-    subject: subject || 'Portfolio Contact',
-    message, to_email: cfg.toEmail, reply_to: email,
-  });
+/* Build the visitor's message in WhatsApp + email formats */
+function composeMessage({ name, email, subject, message }) {
+  const time = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+  const subj = subject || 'New portfolio enquiry';
+  return {
+    waText: `📬 *New message from your portfolio*\n\n👤 *Name:* ${name}\n📧 *Email:* ${email}\n📌 *Subject:* ${subj}\n\n💬 *Message:*\n${message}\n\n⏰ ${time}`,
+    mailSubject: `Portfolio — ${subj}`,
+    mailBody: `Name: ${name}\nEmail: ${email}\nSubject: ${subj}\n\nMessage:\n${message}\n\n— Sent from your portfolio site on ${time}`,
+  };
 }
 
 function showToast(msg, type = 'success') {
@@ -524,45 +661,230 @@ function showToast(msg, type = 'success') {
   }, 4200);
 }
 
-$('contactForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const form = e.target, btn = form.querySelector('button');
-  const name    = form.querySelector('#f-name').value.trim();
-  const email   = form.querySelector('#f-email').value.trim();
-  const subject = form.querySelector('#f-subject').value.trim();
-  const message = form.querySelector('#f-msg').value.trim();
+/* ── Validation rule sets ───────────────────────────── */
+const DISPOSABLE_DOMAINS = new Set([
+  'mailinator.com','guerrillamail.com','guerrillamailblock.com','sharklasers.com','grr.la',
+  '10minutemail.com','10minutemail.net','tempmail.com','temp-mail.org','tempmailo.com','tmail.com',
+  'throwawaymail.com','yopmail.com','yopmail.net','getnada.com','nada.email','trashmail.com',
+  'dispostable.com','maildrop.cc','fakeinbox.com','mailnesia.com','mintemail.com','mailcatch.com',
+  'mohmal.com','emailondeck.com','spam4.me','moakt.com','mvrht.com','spamgourmet.com','discard.email',
+  'inboxbear.com','tempinbox.com','mytemp.email','fakemail.net','tempr.email','dropmail.me',
+  'example.com','example.org','example.net','test.com','email.com','domain.com','mail.com',
+]);
 
-  if (!name || !email || !message) { showToast('Please fill all required fields.', 'error'); return; }
+const TYPO_DOMAINS = {
+  'gmial.com':'gmail.com','gmai.com':'gmail.com','gmal.com':'gmail.com','gmil.com':'gmail.com',
+  'gamil.com':'gmail.com','gnail.com':'gmail.com','gmaill.com':'gmail.com','gmail.co':'gmail.com',
+  'gmail.con':'gmail.com','gmail.cm':'gmail.com','gmail.comm':'gmail.com','gmail.om':'gmail.com',
+  'gmsil.com':'gmail.com','gmial.co':'gmail.com','gmaul.com':'gmail.com',' gmail.com':'gmail.com',
+  'hotmial.com':'hotmail.com','hotmai.com':'hotmail.com','hotmal.com':'hotmail.com','hotmil.com':'hotmail.com',
+  'yahooo.com':'yahoo.com','yaho.com':'yahoo.com','yahho.com':'yahoo.com','yahoo.co':'yahoo.com',
+  'outlok.com':'outlook.com','outloo.com':'outlook.com','outlook.co':'outlook.com','iclod.com':'icloud.com',
+};
 
-  btn.disabled = true;
-  $('sendBtnText').textContent = 'Sending…';
-  $('sendIcon').style.opacity = '0';
-  gsap.to(btn, { scale: 0.97, duration: 0.1 });
+const FAKE_LOCALPARTS = new Set([
+  'test','tests','testing','test123','testtest','fake','faker','fakeemail','asdf','asdfasdf','asdfgh',
+  'qwerty','qwertyuiop','abc','abcd','abcde','abcdef','xxx','xxxx','aaa','aaaa','zzz','zzzz','none',
+  'na','nil','null','noreply','no-reply','donotreply','example','sample','demo','user','users',
+  'admin','foo','bar','foobar','baz','anonymous','anon','dummy','temp','temporary','nobody',
+  'nothing','whatever','blah','asd','qwe','lorem','ipsum','email','mail',
+]);
 
-  await Promise.allSettled([
-    sendWhatsApp(name, email, subject, message),
-    sendEmail(name, email, subject, message),
-  ]);
+const FAKE_NAMES = new Set([
+  'test','testing','test test','asdf','asdfasdf','qwerty','fake','fake name','name','none','na',
+  'nobody','anonymous','anon','user','admin','dummy','xxx','abc','abcd','lorem ipsum','john doe',
+]);
 
-  btn.style.background = 'linear-gradient(135deg,#10b981,#059669)';
-  btn.style.boxShadow  = '0 0 28px rgba(16,185,129,.4)';
-  $('sendBtnText').textContent = 'Message Sent! ✓';
-  gsap.to(btn, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.5)' });
-  showToast('Message delivered via Email & WhatsApp!');
+function validateName(raw) {
+  const v = raw.trim();
+  if (!v)            return 'Please enter your name.';
+  if (v.length < 2)  return 'Name is too short.';
+  if (v.length > 60) return 'Name is too long.';
+  if (/\d/.test(v))             return 'Name should not contain numbers.';
+  if (/(https?:|www\.|@)/i.test(v)) return 'Please enter a valid name.';
+  if (/^(.)\1+$/.test(v.replace(/\s/g, ''))) return 'Please enter your real name.';
+  if (FAKE_NAMES.has(v.toLowerCase()))       return 'Please enter your real name.';
+  if (!/^[A-Za-zÀ-ɏ]+(?:[ '.\-][A-Za-zÀ-ɏ]+)*$/.test(v))
+    return 'Use letters, spaces, hyphens or apostrophes only.';
+  return '';
+}
 
-  setTimeout(() => {
-    $('sendBtnText').textContent = 'Send Message';
-    $('sendIcon').style.opacity = '1';
-    btn.style.background = ''; btn.style.boxShadow = '';
-    btn.disabled = false; form.reset();
-  }, 3500);
-});
+function validateEmail(raw) {
+  const v = raw.trim();
+  if (!v)            return 'Please enter your email address.';
+  if (/\s/.test(v))  return 'Email cannot contain spaces.';
+  const EMAIL_RE = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
+  if (!EMAIL_RE.test(v)) return 'Please enter a valid email address.';
+
+  const lower = v.toLowerCase();
+  const at = lower.lastIndexOf('@');
+  const local = lower.slice(0, at);
+  const domain = lower.slice(at + 1);
+
+  const base = local.split('+')[0];   // ignore "+alias" sub-addressing
+
+  if (TYPO_DOMAINS[domain])        return `Did you mean @${TYPO_DOMAINS[domain]}? Please check your email.`;
+  if (DISPOSABLE_DOMAINS.has(domain)) return 'Temporary / disposable emails are not allowed.';
+  if (FAKE_LOCALPARTS.has(local) || FAKE_LOCALPARTS.has(base)) return 'Please enter your real email address.';
+  if (/^(.)\1+$/.test(base))       return 'Please enter your real email address.';
+  if (/^\d+$/.test(base))          return 'Please enter your real email address.';
+
+  // Gmail / Google Mail — enforce Google's actual account rules
+  if (domain === 'gmail.com' || domain === 'googlemail.com') {
+    if (!/^[a-z0-9.]+$/.test(base))  return 'A Gmail address uses only letters, numbers and dots.';
+    if (base.startsWith('.') || base.endsWith('.')) return 'A Gmail address cannot start or end with a dot.';
+    if (base.includes('..'))         return 'A Gmail address cannot contain consecutive dots.';
+    const bare = base.replace(/\./g, '');
+    if (bare.length < 6)  return 'A real Gmail username is at least 6 characters.';
+    if (bare.length > 30) return 'A Gmail username is at most 30 characters.';
+  }
+  return '';
+}
+
+function validateSubject(raw) {
+  const v = raw.trim();
+  if (v && v.length > 100) return 'Subject is too long (max 100 characters).';
+  return '';
+}
+
+function validateMessage(raw) {
+  const v = raw.trim();
+  if (!v)             return 'Please enter a message.';
+  if (v.length < 10)  return 'Message is too short — please write at least 10 characters.';
+  if (v.length > 1500) return 'Message is too long (max 1500 characters).';
+  if (/^(.)\1+$/.test(v.replace(/\s/g, ''))) return 'Please enter a real message.';
+  if (!/[A-Za-z]/.test(v)) return 'Please enter a meaningful message.';
+  return '';
+}
+
+(function initContactForm() {
+  const form     = $('contactForm');
+  const choice   = $('sendChoice');
+  const sendBtn  = $('sendBtn');
+  const waLink   = $('waSendLink');
+  const mailLink = $('emailSendLink');
+  const backBtn  = $('sendBack');
+  if (!form || !choice) return;
+
+  /* field → validator + error slot */
+  const FIELDS = [
+    { input: 'f-name',    err: 'err-name',    fn: validateName,    optional: false },
+    { input: 'f-email',   err: 'err-email',   fn: validateEmail,   optional: false },
+    { input: 'f-subject', err: 'err-subject', fn: validateSubject, optional: true  },
+    { input: 'f-msg',     err: 'err-msg',     fn: validateMessage, optional: false },
+  ];
+
+  function setFieldState(input, errId, msg) {
+    const group = input.closest('.form-group');
+    const errEl = $(errId);
+    if (msg) {
+      group.classList.add('is-invalid');
+      group.classList.remove('is-valid');
+      if (errEl) errEl.textContent = msg;
+    } else {
+      group.classList.remove('is-invalid');
+      group.classList.toggle('is-valid', input.value.trim().length > 0);
+      if (errEl) errEl.textContent = '';
+    }
+    return !msg;
+  }
+
+  function validateField(f) {
+    const input = $(f.input);
+    return setFieldState(input, f.err, f.fn(input.value));
+  }
+
+  function validateForm() {
+    let firstInvalid = null;
+    FIELDS.forEach(f => { if (!validateField(f) && !firstInvalid) firstInvalid = $(f.input); });
+    if (firstInvalid) {
+      const group = firstInvalid.closest('.form-group');
+      group.classList.remove('shake');
+      void group.offsetWidth;          // restart the shake animation
+      group.classList.add('shake');
+      firstInvalid.focus({ preventScroll: false });
+      return false;
+    }
+    return true;
+  }
+
+  function clearValidation() {
+    FIELDS.forEach(f => {
+      const group = $(f.input).closest('.form-group');
+      group.classList.remove('is-invalid', 'is-valid', 'shake');
+      const errEl = $(f.err); if (errEl) errEl.textContent = '';
+    });
+    updateCount();
+  }
+
+  /* live validation — validate on blur, clear/re-check while typing */
+  FIELDS.forEach(f => {
+    const input = $(f.input);
+    input.addEventListener('blur', () => {
+      if (input.value.trim() || !f.optional) validateField(f);
+    });
+    input.addEventListener('input', () => {
+      const group = input.closest('.form-group');
+      if (group.classList.contains('is-invalid')) validateField(f);   // re-check once flagged
+    });
+  });
+
+  /* message character counter */
+  const msg = $('f-msg'), count = $('msgCount'), MAX = 1500;
+  function updateCount() {
+    if (!msg || !count) return;
+    const n = msg.value.length;
+    count.textContent = `${n} / ${MAX}`;
+    count.classList.toggle('is-near', n > MAX * 0.9);
+  }
+  if (msg) msg.addEventListener('input', updateCount);
+
+  function revealChoice() {
+    choice.hidden = false;
+    sendBtn.style.display = 'none';
+    gsap.fromTo(choice, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' });
+    gsap.fromTo(qsa('.btn', choice),
+      { opacity: 0, y: 12 },
+      { opacity: 1, y: 0, duration: 0.4, stagger: 0.08, ease: 'back.out(2)' });
+  }
+
+  function resetChoice(clearForm) {
+    choice.hidden = true;
+    sendBtn.style.display = '';
+    if (clearForm) { form.reset(); clearValidation(); }
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if (!validateForm()) { showToast('Please fix the highlighted fields.', 'error'); return; }
+    if (!WA_PHONE && !TO_EMAIL) { showToast('No contact channel configured.', 'error'); return; }
+
+    const data = {
+      name:    $('f-name').value.trim(),
+      email:   $('f-email').value.trim(),
+      subject: $('f-subject').value.trim(),
+      message: $('f-msg').value.trim(),
+    };
+    const m = composeMessage(data);
+    waLink.href   = `https://wa.me/${WA_PHONE}?text=${encodeURIComponent(m.waText)}`;
+    mailLink.href = `mailto:${TO_EMAIL}?subject=${encodeURIComponent(m.mailSubject)}&body=${encodeURIComponent(m.mailBody)}`;
+    revealChoice();
+  });
+
+  function onDeliver(channel) {
+    showToast(`Opening ${channel}… tap send there to deliver your message.`);
+    setTimeout(() => resetChoice(true), 2800);
+  }
+  waLink.addEventListener('click',   () => onDeliver('WhatsApp'));
+  mailLink.addEventListener('click', () => onDeliver('Email'));
+  backBtn.addEventListener('click',  () => resetChoice(false));
+})();
 
 /* ════════════════════════════════════════════════════
    17. BUILD DOM FROM CONFIG
 ════════════════════════════════════════════════════ */
 function buildNav() {
-  $('navLogo').textContent = C.personal.nameShort + '.';
+  $('navLogo').textContent = C.personal.name;
   const ul = $('navLinks'), mob = $('mobileMenu');
   C.navLinks.forEach(l => {
     const li = mk('li'), a = mk('a');
@@ -570,7 +892,10 @@ function buildNav() {
     li.appendChild(a); ul.appendChild(li);
     const ma = mk('a'); ma.href = l.href; ma.textContent = l.label; mob.appendChild(ma);
   });
-  $('resumeBtn').href = C.personal.resume;
+  const resumeBtn = $('resumeBtn');
+  resumeBtn.href = C.personal.resume;
+  resumeBtn.target = '_blank';
+  resumeBtn.rel = 'noopener noreferrer';
 }
 
 function buildHero() {
@@ -581,7 +906,7 @@ function buildHero() {
     : `<svg viewBox="0 0 100 100"><circle cx="50" cy="36" r="22" fill="var(--accent)" opacity=".7"/><ellipse cx="50" cy="88" rx="34" ry="24" fill="var(--accent)" opacity=".7"/></svg>`;
 
   const orbitEl = $('avatarOrbit');
-  ['.NET 8','Angular','Azure','SQL'].forEach((b, i) => {
+  ['.NET Core','Angular','Azure','SQL'].forEach((b, i) => {
     const positions = ['top:8%;right:-12%','bottom:12%;right:-10%','bottom:8%;left:-12%','top:12%;left:-10%'];
     const colors    = ['#a78bfa','#f87171','#34d399','#60a5fa'];
     const span = mk('span', 'orbit-badge');
@@ -594,8 +919,7 @@ function buildHero() {
   gsap.set(qsa('.orbit-badge'), { scale: 0, opacity: 0 });
 
   const statsEl = $('heroStats');
-  C.stats.forEach((s, i) => {
-    if (i > 0) { const d = mk('div'); d.style.cssText = 'width:1px;height:40px;background:var(--border)'; statsEl.appendChild(d); }
+  C.stats.forEach(s => {
     const div = mk('div', 'stat');
     div.innerHTML = `<span class="stat__num" data-target="${s.value}">0</span><span class="stat__label">${s.label}</span>`;
     statsEl.appendChild(div);
@@ -714,6 +1038,29 @@ function buildProjects() {
   });
 }
 
+function buildEducation() {
+  const grid = $('eduGrid');
+  if (!grid) return;
+  C.education.forEach(ed => {
+    const card = mk('div', 'edu-card');
+    card.innerHTML = `
+      <div class="edu-card__icon">${ed.icon}</div>
+      <div class="edu-card__body">
+        <div class="edu-card__top">
+          <h3 class="edu-card__degree">${ed.degree}</h3>
+          <span class="edu-card__score">${ed.score}</span>
+        </div>
+        <p class="edu-card__school">${ed.school}</p>
+        <div class="edu-card__meta">
+          <span class="edu-card__place">📍 ${ed.place}</span>
+          <span class="edu-card__period">${ed.period}</span>
+        </div>
+      </div>`;
+    if (C.theme.enableTilt) initTilt(card);
+    grid.appendChild(card);
+  });
+}
+
 function buildCerts() {
   const grid = $('certsGrid');
   C.certifications.forEach(cert => {
@@ -737,8 +1084,8 @@ function buildContact() {
   [
     { icon:'📧', title:'Email',    val:`<a href="mailto:${C.personal.email}">${C.personal.email}</a>` },
     { icon:'📍', title:'Location', val:`<span>${C.personal.location}</span>` },
-    { icon:'💼', title:'LinkedIn', val:`<a href="${C.personal.linkedin}" target="_blank">linkedin.com/in/suryavanshiprasad</a>` },
-    { icon:'🐙', title:'GitHub',   val:`<a href="${C.personal.github}" target="_blank">github.com/suryavanshiprasad007</a>` },
+    { icon:'💼', title:'LinkedIn', val:`<a href="${C.personal.linkedin}" target="_blank">${C.personal.linkedin.replace(/^https?:\/\//, '')}</a>` },
+    { icon:'🐙', title:'GitHub',   val:`<a href="${C.personal.github}" target="_blank">${C.personal.github.replace(/^https?:\/\//, '')}</a>` },
     { icon:'📱', title:'Phone',    val:`<span>${C.personal.phone}</span>` },
   ].forEach(i => {
     const div = mk('div', 'contact__item');
@@ -748,7 +1095,7 @@ function buildContact() {
 }
 
 function buildFooter() {
-  $('footerLogo').textContent = C.personal.nameShort + '.';
+  $('footerLogo').textContent = C.personal.name;
   $('footerCopy').textContent = `© ${new Date().getFullYear()} ${C.personal.name}. Built with clean code.`;
   const socials = $('footerSocials');
   [
@@ -768,7 +1115,7 @@ document.addEventListener('click', e => {
   const target = document.querySelector(a.getAttribute('href'));
   if (!target) return;
   e.preventDefault();
-  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  smoothScrollTo(target);
 });
 
 /* ════════════════════════════════════════════════════
@@ -781,16 +1128,22 @@ document.addEventListener('DOMContentLoaded', () => {
   buildSkills();
   buildExperience();
   buildProjects();
+  buildEducation();
   buildCerts();
   buildContact();
   buildFooter();
 
   requestAnimationFrame(() => {
-    animateHeroEntrance();
+    initSmoothScroll();             // momentum scrolling first, so ScrollTrigger syncs to it
+    setHeroInitialState();          // hide hero/nav so there's no flash behind the preloader
     initScrollReveal();
     initSkillBars();
     initCounters();
     initHoverAnimations();
     initParallax();
+    initMagnetic();
+    initSpotlight();
+    initAvatar3D();
+    initPreloader(animateHeroEntrance);   // reveal the hero once the curtain lifts
   });
 });

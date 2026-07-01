@@ -3,8 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Full Stack .NET & Angular Developer Portfolio" />
-  <title>SVP — Full Stack Developer</title>
+  <meta name="description" content="Prasad Suryavanshi — Full Stack Developer specialising in .NET Core, Angular & Microsoft Azure. 5+ years building scalable, cloud-native enterprise applications." />
+  <meta name="author" content="Prasad Suryavanshi" />
+  <meta property="og:title" content="Prasad Suryavanshi — Full Stack Developer (.NET & Angular)" />
+  <meta property="og:description" content="5+ years building scalable, cloud-native enterprise applications across the .NET & Angular stack on Microsoft Azure." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#050508" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <title>Prasad Suryavanshi — Full Stack Developer (.NET & Angular)</title>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -14,12 +20,31 @@
 </head>
 <body>
 
+  <!-- ── PRELOADER ── -->
+  <div class="preloader" id="preloader">
+    <div class="preloader__inner">
+      <div class="preloader__logo" id="preloaderLogo"></div>
+      <div class="preloader__bar"><span id="preloaderFill"></span></div>
+      <div class="preloader__pct" id="preloaderPct">0%</div>
+    </div>
+  </div>
+
   <!-- ── CURSOR ── -->
   <div class="cursor" id="cursor"></div>
   <div class="cursor-dot" id="cursorDot"></div>
 
   <!-- ── SCROLL PROGRESS ── -->
   <div class="scroll-progress" id="scrollProgress"></div>
+
+  <!-- ── AURORA / GRADIENT MESH BACKGROUND ── -->
+  <div class="aurora" aria-hidden="true">
+    <span class="aurora__blob aurora__blob--1"></span>
+    <span class="aurora__blob aurora__blob--2"></span>
+    <span class="aurora__blob aurora__blob--3"></span>
+  </div>
+
+  <!-- ── FUTURISTIC GRID OVERLAY ── -->
+  <div class="grid-overlay" aria-hidden="true"></div>
 
   <!-- ── CANVAS PARTICLES ── -->
   <canvas id="particles" class="particles-canvas"></canvas>
@@ -82,6 +107,7 @@
       <div class="avatar-wrap">
         <div class="avatar-ring avatar-ring--outer"></div>
         <div class="avatar-ring avatar-ring--inner"></div>
+        <div class="avatar-conic"></div>
         <div class="avatar-core" id="avatarCore">
           <div class="avatar-img" id="avatarImg"></div>
         </div>
@@ -133,6 +159,7 @@
       <div class="section__header">
         <span class="section__label reveal-up">03 / Experience</span>
         <h2 class="section__title reveal-up">Work History</h2>
+        <p class="section__sub reveal-up">Where I've shipped production software.</p>
       </div>
       <div class="timeline" id="timeline"></div>
     </div>
@@ -147,8 +174,19 @@
         <p class="section__sub reveal-up">Handpicked projects that showcase my best engineering.</p>
       </div>
       <div class="projects__featured" id="projectsFeatured"></div>
-      <h3 class="projects__more-title reveal-up">Other Projects</h3>
+      <h3 class="projects__more-title reveal-up">Academic Projects</h3>
       <div class="projects__grid" id="projectsGrid"></div>
+    </div>
+  </section>
+
+  <!-- ── EDUCATION ── -->
+  <section class="section" id="education">
+    <div class="container">
+      <div class="section__header">
+        <span class="section__label reveal-up">05 / Education</span>
+        <h2 class="section__title reveal-up">Academic Background</h2>
+      </div>
+      <div class="edu__grid" id="eduGrid"></div>
     </div>
   </section>
 
@@ -156,8 +194,9 @@
   <section class="section" id="certifications">
     <div class="container">
       <div class="section__header">
-        <span class="section__label reveal-up">05 / Credentials</span>
+        <span class="section__label reveal-up">06 / Credentials</span>
         <h2 class="section__title reveal-up">Certifications</h2>
+        <p class="section__sub reveal-up">Government-certified computer typing proficiency.</p>
       </div>
       <div class="certs__grid" id="certsGrid"></div>
     </div>
@@ -167,7 +206,7 @@
   <section class="section section--alt" id="contact">
     <div class="container">
       <div class="section__header">
-        <span class="section__label reveal-up">06 / Contact</span>
+        <span class="section__label reveal-up">07 / Contact</span>
         <h2 class="section__title reveal-up">Let's Build Something</h2>
         <p class="section__sub reveal-up">Have a project in mind? I'd love to hear about it.</p>
       </div>
@@ -176,34 +215,72 @@
         <form class="contact__form glass-card reveal-up" id="contactForm" novalidate>
           <div class="form-row">
             <div class="form-group">
-              <input type="text" id="f-name" placeholder=" " required />
+              <input type="text" id="f-name" placeholder=" " required
+                     autocomplete="name" maxlength="60" spellcheck="false"
+                     aria-describedby="err-name" />
               <label for="f-name">Full Name</label>
               <span class="form-line"></span>
+              <span class="form-error" id="err-name" role="alert"></span>
             </div>
             <div class="form-group">
-              <input type="email" id="f-email" placeholder=" " required />
+              <input type="email" id="f-email" placeholder=" " required
+                     autocomplete="email" inputmode="email" maxlength="120" spellcheck="false"
+                     aria-describedby="err-email" />
               <label for="f-email">Email Address</label>
               <span class="form-line"></span>
+              <span class="form-error" id="err-email" role="alert"></span>
             </div>
           </div>
           <div class="form-group">
-            <input type="text" id="f-subject" placeholder=" " />
-            <label for="f-subject">Subject</label>
+            <input type="text" id="f-subject" placeholder=" "
+                   maxlength="100" aria-describedby="err-subject" />
+            <label for="f-subject">Subject <span class="form-optional">(optional)</span></label>
             <span class="form-line"></span>
+            <span class="form-error" id="err-subject" role="alert"></span>
           </div>
           <div class="form-group">
-            <textarea id="f-msg" rows="5" placeholder=" " required></textarea>
+            <textarea id="f-msg" rows="5" placeholder=" " required
+                      maxlength="1500" aria-describedby="err-msg"></textarea>
             <label for="f-msg">Your Message</label>
             <span class="form-line"></span>
+            <div class="form-meta">
+              <span class="form-error" id="err-msg" role="alert"></span>
+              <span class="form-count" id="msgCount">0 / 1500</span>
+            </div>
           </div>
-          <button type="submit" class="btn btn--primary btn--glow btn--full">
+          <button type="submit" class="btn btn--primary btn--glow btn--full" id="sendBtn">
             <span id="sendBtnText">Send Message</span>
             <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           </button>
+
+          <!-- ── CHANNEL CHOOSER (revealed after validation) ── -->
+          <div class="send-choice" id="sendChoice" hidden>
+            <p class="send-choice__hint">Almost there — choose how to deliver your message:</p>
+            <div class="send-choice__btns">
+              <a class="btn btn--wa btn--full" id="waSendLink" href="#" target="_blank" rel="noopener noreferrer">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.86 9.86 0 0 0 4.79 1.22h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm5.8 14.01c-.25.69-1.43 1.32-1.97 1.35-.5.06-1.14.08-1.84-.12-.42-.13-.97-.31-1.66-.61-2.92-1.26-4.83-4.2-4.98-4.39-.15-.2-1.2-1.59-1.2-3.03 0-1.44.76-2.15 1.02-2.44.26-.29.57-.36.76-.36l.55.01c.18 0 .42-.07.65.5.24.58.81 2 .88 2.15.07.14.12.31.02.5-.09.19-.14.31-.28.48-.14.17-.3.38-.43.51-.14.14-.29.29-.12.57.17.29.74 1.22 1.59 1.98 1.09.97 2.01 1.27 2.3 1.42.29.14.46.12.63-.07.17-.2.72-.85.91-1.14.19-.29.39-.24.65-.14.26.09 1.67.79 1.96.93.29.14.48.22.55.34.07.12.07.68-.18 1.37z"/></svg>
+                <span>Send via WhatsApp</span>
+              </a>
+              <a class="btn btn--mail btn--full" id="emailSendLink" href="#">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+                <span>Send via Email</span>
+              </a>
+            </div>
+            <button type="button" class="send-choice__back" id="sendBack">← Edit message</button>
+          </div>
         </form>
       </div>
     </div>
   </section>
+
+  <!-- ── SCROLL TO TOP ── -->
+  <button class="to-top" id="toTop" aria-label="Scroll to top">
+    <svg class="to-top__ring" viewBox="0 0 44 44">
+      <circle class="to-top__track" cx="22" cy="22" r="20"></circle>
+      <circle class="to-top__prog" id="toTopProg" cx="22" cy="22" r="20"></circle>
+    </svg>
+    <svg class="to-top__arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+  </button>
 
   <!-- ── FOOTER ── -->
   <footer class="footer">
@@ -219,8 +296,8 @@
   <!-- GSAP + ScrollTrigger (industry-standard animation engine) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-  <!-- EmailJS SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <!-- Lenis — smooth momentum scrolling -->
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.14/dist/lenis.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
