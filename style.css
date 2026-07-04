@@ -71,6 +71,17 @@ body {
   line-height: 1.7;
   transition: background .4s var(--ease), color .4s var(--ease);
   cursor: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Contact details stay selectable so recruiters can copy them;
+   form fields must always remain fully editable/copyable. */
+input, textarea, .allow-copy, [contenteditable="true"] {
+  -webkit-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -706,18 +717,92 @@ button { cursor: none; }
   50%      { opacity: 1; transform: scale(1.1); }
 }
 
-/* orbit badges */
-.avatar-orbit { position: absolute; inset: 0; }
-.orbit-badge {
+/* orbit — revolving tech-concept chips */
+.avatar-orbit { position: absolute; inset: 0; transform-style: preserve-3d; }
+.orbit-chip {
   position: absolute;
-  padding: 7px 14px;
+  top: 50%; left: 50%;
+  padding: 6px 13px 6px 20px;
   border-radius: 100px;
-  font-size: .75rem; font-weight: 700;
-  backdrop-filter: blur(16px);
+  font-size: .72rem; font-weight: 700;
+  letter-spacing: .2px;
+  white-space: nowrap;
+  color: #fff;
   border: 1px solid var(--border);
   background: var(--card-bg);
-  white-space: nowrap;
-  transform-origin: center;
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: 0 6px 22px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.07);
+  pointer-events: none;
+  will-change: transform;
+  z-index: 3;
+  animation: chip-breathe 3.2s ease-in-out infinite;
+  animation-delay: var(--pulse-delay, 0s);
+}
+[data-theme="light"] .orbit-chip {
+  box-shadow: 0 6px 22px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.8);
+}
+@keyframes chip-breathe {
+  0%, 100% { filter: brightness(1);    box-shadow: 0 6px 22px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.07); }
+  50%      { filter: brightness(1.35); box-shadow: 0 6px 26px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.14), 0 0 16px -2px currentColor; }
+}
+
+/* pulsing dot — sits inside the chip, echoes the availability pulse */
+.orbit-chip__dot {
+  position: absolute;
+  left: 8px; top: 50%;
+  width: 5px; height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.orbit-chip__dot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  animation: chip-pulse-ring 3.2s ease-out infinite;
+  animation-delay: var(--pulse-delay, 0s);
+}
+@keyframes chip-pulse-ring {
+  0%   { transform: scale(1);   opacity: .9; }
+  70%  { transform: scale(4.2); opacity: 0;  }
+  100% { transform: scale(4.2); opacity: 0;  }
+}
+
+/* Below 900px, .avatar-wrap itself shrinks (see the avatar-wrap media
+   query above) — the 3-ring radii were solved against the full-size
+   avatar, so at the smaller scale keep only the inner ring; it alone
+   was independently verified safe against the avatar's own circle. */
+@media (max-width: 900px) {
+  .orbit-chip--r1, .orbit-chip--r2 { display: none; }
+  .orbit-track--r1, .orbit-track--r2 { display: none; }
+}
+@media (max-width: 640px) {
+  .orbit-chip { font-size: .6rem; padding: 4px 9px 4px 16px; }
+}
+
+/* radar sonar pulse — an expanding ring along each orbit track */
+.orbit-track {
+  position: absolute;
+  top: 50%; left: 50%;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  transform: translate(-50%, -50%) scale(.92);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+  animation: orbit-sonar 4.4s ease-out infinite;
+}
+@keyframes orbit-sonar {
+  0%   { transform: translate(-50%, -50%) scale(.92); opacity: .5; }
+  65%  { opacity: .12; }
+  100% { transform: translate(-50%, -50%) scale(1.05); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit-chip, .orbit-chip__dot::before, .orbit-track { animation: none !important; }
 }
 
 /* hero scroll hint */
@@ -1274,6 +1359,9 @@ button { cursor: none; }
   outline: none;
   transition: border-color .25s;
   resize: none;
+  /* native text (I-beam) cursor here — overrides the site-wide custom
+     cursor so it's obvious you can click/select/copy/paste in the field */
+  cursor: text;
 }
 .form-group input:focus,
 .form-group textarea:focus { border-color: var(--accent); }

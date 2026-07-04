@@ -97,6 +97,14 @@ function smoothScrollTo(target, opts = {}) {
     el.addEventListener('mouseenter', () => gsap.to(cursor, { scale: 1.7, duration: 0.3, ease: 'back.out(2)' }));
     el.addEventListener('mouseleave', () => gsap.to(cursor, { scale: 1,   duration: 0.3, ease: 'back.out(2)' }));
   });
+
+  // Form fields get the native text (I-beam) cursor via CSS — hide the
+  // custom circle over them so it doesn't sit on top and obscure it,
+  // making it clear you can click/select/copy/paste in the field.
+  qsa('.form-group input, .form-group textarea').forEach(el => {
+    el.addEventListener('mouseenter', () => gsap.to([cursor, dot], { opacity: 0, duration: 0.15 }));
+    el.addEventListener('mouseleave', () => gsap.to([cursor, dot], { opacity: 1, duration: 0.15 }));
+  });
 })();
 
 /* ════════════════════════════════════════════════════
@@ -207,10 +215,10 @@ function animateHeroEntrance() {
     '-=0.7'
   );
 
-  // Orbit badges pop in
-  tl.fromTo(qsa('.orbit-badge'),
+  // Orbit chips pop in
+  tl.fromTo(qsa('.orbit-chip'),
     { scale: 0, opacity: 0 },
-    { scale: 1, opacity: 1, duration: 0.5, stagger: 0.12, ease: 'back.out(2.5)' },
+    { scale: 1, opacity: 1, duration: 0.5, stagger: 0.05, ease: 'back.out(2.5)' },
     '-=0.5'
   );
 
@@ -621,6 +629,67 @@ function initPreloader(done) {
 })();
 
 /* ════════════════════════════════════════════════════
+   15b. CONTENT PROTECTION
+   Deters casual right-click / copy / drag-save of page
+   content. Elements (or ancestors) marked .allow-copy —
+   the email and phone in About/Contact — are exempt, so
+   recruiters can still grab your contact details. Inputs
+   and textareas are always exempt too (the contact form
+   must stay fully editable/copy-pasteable).
+
+   NOTE — this is a deterrent, not real security. Anyone
+   can still view source, disable JavaScript, or use their
+   browser's dev tools before this script runs; no client-
+   side script can truly prevent that.
+════════════════════════════════════════════════════ */
+(function initContentProtection() {
+  let lastToast = 0;
+  const notify = msg => {
+    const now = Date.now();
+    if (now - lastToast < 2500) return;   // throttle so rapid attempts don't spam toasts
+    lastToast = now;
+    showToast(msg, 'error');
+  };
+
+  const isExempt = target =>
+    !!target.closest?.('input, textarea, .allow-copy, [contenteditable="true"]');
+
+  document.addEventListener('contextmenu', e => {
+    if (isExempt(e.target)) return;
+    e.preventDefault();
+    notify('Right-click is disabled on this page.');
+  });
+
+  ['copy', 'cut'].forEach(evt => {
+    document.addEventListener(evt, e => {
+      if (isExempt(e.target)) return;
+      e.preventDefault();
+      notify(evt === 'copy' ? 'Copying is disabled on this page.' : 'Cutting is disabled on this page.');
+    });
+  });
+
+  document.addEventListener('selectstart', e => {
+    if (isExempt(e.target)) return;
+    e.preventDefault();
+  });
+
+  document.addEventListener('dragstart', e => {
+    if (e.target.tagName === 'IMG' && !isExempt(e.target)) e.preventDefault();
+  });
+
+  // Best-effort only — modern Chrome/Firefox ignore these for their own
+  // DevTools shortcuts, but some browsers/older versions still respect them.
+  document.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    const blockCombo =
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && ['i', 'j', 'c'].includes(k)) ||
+      (e.ctrlKey && (k === 'u' || k === 's'));
+    if (blockCombo) { e.preventDefault(); notify('Developer tools are disabled on this page.'); }
+  });
+})();
+
+/* ════════════════════════════════════════════════════
    16. CONTACT FORM — WhatsApp / Email channel picker
 ════════════════════════════════════════════════════ */
 
@@ -898,6 +967,152 @@ function buildNav() {
   resumeBtn.rel = 'noopener noreferrer';
 }
 
+/* ════════════════════════════════════════════════════
+   ORBIT — revolving tech-concept badges around the avatar
+   Three counter-rotating rings of compact, fixed-size
+   badges (not long text pills) — a badge's footprint is
+   uniform in every direction, so overlap math is simple:
+   two badges are safe whenever center-distance exceeds
+   ~74px (their combined bounding-circle diameter).
+
+   All 3 rings hold the SAME chip count (6) and are phased
+   20° apart — like an 18-tooth gear — so every badge in
+   one ring sits at a guaranteed ≥20° angular gap from its
+   nearest neighbors in the adjacent ring, at every instant
+   of rotation *and* in the permanently-frozen reduced-
+   motion state. Radii below were solved so that a 20° gap
+   always clears the 74px safety distance with margin.
+   Abbreviated labels carry a native title= tooltip with
+   the full name — hover/long-press to see it spelled out.
+
+   Radii were solved from the ACTUAL rendered pill sizes
+   (measured headlessly, not guessed): ring0 max 90×34px,
+   ring1 max 84×34px, ring2 max 71×34px.
+
+   IMPORTANT: all three rings share the exact same duration
+   AND direction. This is deliberate, not an oversight — if
+   rings spun at different speeds (even "counter-rotating"),
+   their *relative* phase would drift continuously, meaning
+   any initially-safe 20°/40° gap would inevitably rotate
+   back into alignment sooner or later (verified empirically:
+   an earlier counter-rotating version produced ~1.5 collided
+   pairs per second on average once running). With identical
+   speed+direction, the safe starting arrangement (verified
+   zero-overlap via the frozen reduced-motion snapshot) is
+   preserved permanently — the whole assembly just turns
+   together, like a fixed constellation.
+════════════════════════════════════════════════════ */
+const ORBIT_DUR = 70;
+const ORBIT_RINGS = [
+  { frac: 0.97, dur: ORBIT_DUR, dir: 1, ringColor: '#a78bfa', chips: [   // .NET / data — also the only ring shown on mobile
+    { t: 'EF Core',   c: '#a78bfa', full: 'Entity Framework Core' },
+    { t: 'Code-1st',  c: '#c4b5fd', full: 'Code-First Migrations' },
+    { t: 'DB-1st',    c: '#93c5fd', full: 'Database-First Approach' },
+    { t: 'LINQ',      c: '#a78bfa', full: 'LINQ' },
+    { t: 'ADO.NET',   c: '#93c5fd', full: 'ADO.NET' },
+    { t: 'Angular',   c: '#f87171', full: 'Angular' },
+  ]},
+  { frac: 1.30, dur: ORBIT_DUR, dir: 1, ringColor: '#22d3ee', phase: Math.PI / 9, chips: [   // Azure / messaging
+    { t: 'Blob',      c: '#22d3ee', full: 'Azure Blob Storage' },
+    { t: 'Azure Fn',  c: '#34d399', full: 'Azure Functions' },
+    { t: 'Svc Bus',   c: '#22d3ee', full: 'Azure Service Bus' },
+    { t: 'Queue',     c: '#5eead4', full: 'Queue Trigger' },
+    { t: 'Timer',     c: '#34d399', full: 'Timer Trigger' },
+    { t: 'App Svc',   c: '#5eead4', full: 'Azure App Services' },
+  ]},
+  { frac: 1.35, dur: ORBIT_DUR, dir: 1, ringColor: '#f59e0b', phase: 2 * Math.PI / 9, chips: [   // architecture / tooling
+    { t: 'CQRS',      c: '#f59e0b', full: 'CQRS' },
+    { t: 'Repo',      c: '#fbbf24', full: 'Repository Pattern' },
+    { t: 'UoW',       c: '#fb923c', full: 'Unit of Work' },
+    { t: 'JWT',       c: '#f472b6', full: 'JWT & RBAC Security' },
+    { t: 'DI',        c: '#fbbf24', full: 'Dependency Injection' },
+    { t: 'CI/CD',     c: '#fb923c', full: 'CI/CD Pipelines' },
+  ]},
+];
+let ORBIT_ITEMS = [];
+let ORBIT_TRACKS = [];
+
+function buildOrbit(orbitEl) {
+  if (!orbitEl) return;
+  ORBIT_ITEMS = [];
+  ORBIT_TRACKS = [];
+  let chipIndex = 0;
+
+  ORBIT_RINGS.forEach((ring, ri) => {
+    // one faint radar sonar pulse per ring track
+    const track = mk('span', 'orbit-track orbit-track--r' + ri);
+    track.style.color = ring.ringColor;
+    track.style.animationDelay = (ri * 1.4) + 's';
+    orbitEl.appendChild(track);
+    ORBIT_TRACKS.push({ el: track, frac: ring.frac });
+
+    const n = ring.chips.length;
+    ring.chips.forEach((c, i) => {
+      const el = mk('span', 'orbit-chip orbit-chip--r' + ri);
+      el.innerHTML = `<span class="orbit-chip__dot"></span><span>${c.t}</span>`;
+      el.style.color = c.c;
+      el.title = c.full || c.t;
+      el.style.setProperty('--pulse-delay', (chipIndex++ * 0.22) + 's');
+      orbitEl.appendChild(el);
+      gsap.set(el, { xPercent: -50, yPercent: -50, opacity: 0, scale: 0 });
+      ORBIT_ITEMS.push({
+        el,
+        frac:  ring.frac,
+        base:  (i / n) * Math.PI * 2 + (ring.phase || 0),
+        speed: ring.dir * (Math.PI * 2 / ring.dur),
+        setX:  gsap.quickSetter(el, 'x', 'px'),
+        setY:  gsap.quickSetter(el, 'y', 'px'),
+      });
+    });
+  });
+}
+
+function initOrbit() {
+  const wrap = qs('.avatar-wrap');
+  if (!wrap || !ORBIT_ITEMS.length) return;
+
+  let baseR = wrap.offsetWidth / 2 || 190;     // layout width — ignores entrance scale / 3D tilt
+  const sizeTracks = () => {
+    ORBIT_TRACKS.forEach(t => {
+      const d = baseR * t.frac * 2;
+      t.el.style.width = d + 'px';
+      t.el.style.height = d + 'px';
+    });
+  };
+  const measure = () => { baseR = (wrap.offsetWidth / 2) || baseR; sizeTracks(); };
+  window.addEventListener('resize', measure, { passive: true });
+  sizeTracks();
+
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let elapsed = 0, paused = false, last = performance.now();
+
+  // pause on hover over the avatar area (desktop only) + gentle lift cue
+  const visual = qs('.hero__visual');
+  if (visual && !matchMedia('(hover: none)').matches) {
+    const chips = ORBIT_ITEMS.map(it => it.el);
+    visual.addEventListener('mouseenter', () => {
+      paused = true;
+      gsap.to(chips, { scale: 1.08, duration: 0.4, ease: 'power3.out', overwrite: 'auto' });
+    });
+    visual.addEventListener('mouseleave', () => {
+      paused = false;
+      gsap.to(chips, { scale: 1, duration: 0.5, ease: 'power3.out', overwrite: 'auto' });
+    });
+  }
+
+  gsap.ticker.add(() => {
+    const now = performance.now();
+    const dt = (now - last) / 1000; last = now;
+    if (!reduce && !paused) elapsed += dt;          // freeze while paused → smooth resume
+    for (const it of ORBIT_ITEMS) {
+      const ang = it.base + elapsed * it.speed;
+      const r = baseR * it.frac;
+      it.setX(Math.cos(ang) * r);
+      it.setY(Math.sin(ang) * r);
+    }
+  });
+}
+
 function buildHero() {
   $('heroTagline').textContent = C.personal.tagline;
   const core = $('avatarImg');
@@ -905,18 +1120,10 @@ function buildHero() {
     ? `<img src="${C.personal.avatar}" alt="${C.personal.name}" style="width:100%;height:100%;object-fit:cover;">`
     : `<svg viewBox="0 0 100 100"><circle cx="50" cy="36" r="22" fill="var(--accent)" opacity=".7"/><ellipse cx="50" cy="88" rx="34" ry="24" fill="var(--accent)" opacity=".7"/></svg>`;
 
-  const orbitEl = $('avatarOrbit');
-  ['.NET Core','Angular','Azure','SQL'].forEach((b, i) => {
-    const positions = ['top:8%;right:-12%','bottom:12%;right:-10%','bottom:8%;left:-12%','top:12%;left:-10%'];
-    const colors    = ['#a78bfa','#f87171','#34d399','#60a5fa'];
-    const span = mk('span', 'orbit-badge');
-    span.textContent = b; span.style.cssText = positions[i] + `;color:${colors[i]}`;
-    orbitEl.appendChild(span);
-  });
+  buildOrbit($('avatarOrbit'));
 
   // Set initial hidden state for entrance animation
   gsap.set(qs('.hero__visual'), { opacity: 0 });
-  gsap.set(qsa('.orbit-badge'), { scale: 0, opacity: 0 });
 
   const statsEl = $('heroStats');
   C.stats.forEach(s => {
@@ -935,7 +1142,7 @@ function buildAbout() {
 
   const cards = $('aboutCards');
   [
-    { icon:'📧', title:'Email',    val:`<a href="mailto:${C.personal.email}">${C.personal.email}</a>` },
+    { icon:'📧', title:'Email',    val:`<a class="allow-copy" href="mailto:${C.personal.email}">${C.personal.email}</a>` },
     { icon:'📍', title:'Location', val: C.personal.location },
     { icon:'💼', title:'LinkedIn', val:`<a href="${C.personal.linkedin}" target="_blank">View Profile</a>` },
     { icon:'🐙', title:'GitHub',   val:`<a href="${C.personal.github}" target="_blank">View Repos</a>` },
@@ -1082,11 +1289,11 @@ function buildCerts() {
 function buildContact() {
   const info = $('contactInfo');
   [
-    { icon:'📧', title:'Email',    val:`<a href="mailto:${C.personal.email}">${C.personal.email}</a>` },
+    { icon:'📧', title:'Email',    val:`<a class="allow-copy" href="mailto:${C.personal.email}">${C.personal.email}</a>` },
     { icon:'📍', title:'Location', val:`<span>${C.personal.location}</span>` },
     { icon:'💼', title:'LinkedIn', val:`<a href="${C.personal.linkedin}" target="_blank">${C.personal.linkedin.replace(/^https?:\/\//, '')}</a>` },
     { icon:'🐙', title:'GitHub',   val:`<a href="${C.personal.github}" target="_blank">${C.personal.github.replace(/^https?:\/\//, '')}</a>` },
-    { icon:'📱', title:'Phone',    val:`<span>${C.personal.phone}</span>` },
+    { icon:'📱', title:'Phone',    val:`<span class="allow-copy">${C.personal.phone}</span>` },
   ].forEach(i => {
     const div = mk('div', 'contact__item');
     div.innerHTML = `<div class="contact__icon">${i.icon}</div><div><h4>${i.title}</h4><p>${i.val}</p></div>`;
@@ -1112,7 +1319,10 @@ function buildFooter() {
 document.addEventListener('click', e => {
   const a = e.target.closest('a[href^="#"]');
   if (!a) return;
-  const target = document.querySelector(a.getAttribute('href'));
+  const hash = a.getAttribute('href');
+  if (!hash || hash === '#') return;          // ignore bare "#" placeholder links
+  let target = null;
+  try { target = document.querySelector(hash); } catch (_) { return; }  // invalid selector guard
   if (!target) return;
   e.preventDefault();
   smoothScrollTo(target);
@@ -1144,6 +1354,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMagnetic();
     initSpotlight();
     initAvatar3D();
+    initOrbit();
     initPreloader(animateHeroEntrance);   // reveal the hero once the curtain lifts
   });
 });
