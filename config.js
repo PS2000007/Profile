@@ -62,12 +62,13 @@ const CONFIG = {
   },
 
   /* ── STATS (hero counters) ──────────────────────────────── */
-  /* value may be a decimal; suffix is appended after the count-up */
+  /* value may be a decimal; suffix is appended after the count-up.
+     value 'auto' on Technologies = number of entries in techBadges below */
   stats: [
-    { label: 'Years Experience',   value: 4.6, suffix: '+' },
-    { label: 'Enterprise Projects', value: 3,  suffix: ''  },
-    { label: 'Technologies',       value: 40,  suffix: '+' },
-    { label: 'Insurance Integrations', value: 3, suffix: '' },
+    { label: 'Years Experience',   value: 4.6,    suffix: '+' },
+    { label: 'Projects Shipped',   value: 3,      suffix: ''  },
+    { label: 'Technologies',       value: 'auto', suffix: ''  },
+    { label: 'Insurance Integrations', value: 3,  suffix: ''  },
   ],
 
   /* ── SKILLS ─────────────────────────────────────────────── */
@@ -145,12 +146,12 @@ const CONFIG = {
   /* ── TECH BADGES (pill row) ─────────────────────────────── */
   techBadges: [
     'C#', '.NET', '.NET Framework', 'ASP.NET Core Web API', 'ASP.NET Web API', 'EF Core', 'Dapper', 'LINQ',
-    'Angular', 'TypeScript', 'RxJS', 'SCSS',
+    'Angular', 'TypeScript', 'RxJS', 'HTML', 'CSS', 'SCSS',
     'SQL Server', 'T-SQL', 'Azure Functions', 'Azure Service Bus', 'Azure Blob Storage',
     'Azure App Service', 'Microsoft Graph API', 'Azure Form Recognizer',
     'JWT', 'RBAC', 'OAuth 2.0', 'Clean Architecture', 'Microservices', 'Repository Pattern',
     'iText 7', 'ABCpdf', 'Telerik Reporting', 'Git', 'GitHub', 'Azure DevOps', 'Docker',
-    'Postman', 'Swagger', 'SSMS', 'JIRA', 'Service Bus Explorer',
+    'Visual Studio', 'VS Code', 'Source Tree', 'Postman', 'Swagger', 'SSMS', 'JIRA', 'Service Bus Explorer',
     'GitHub Copilot', 'Claude', 'ChatGPT',
   ],
 
@@ -346,3 +347,6 @@ const CONFIG = {
   ],
 
 };
+
+// Keep the Technologies counter in sync with the tech badge list
+CONFIG.stats.forEach(s => { if (s.value === 'auto') s.value = CONFIG.techBadges.length; });
