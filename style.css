@@ -1075,14 +1075,15 @@ button { cursor: none; }
 
 .timeline__list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
 .timeline__list li {
-  display: flex; gap: 10px;
+  position: relative;
+  padding-left: 20px;
   color: var(--text-muted);
   font-size: .875rem; line-height: 1.7;
 }
 .timeline__list li::before {
   content: '▸';
-  color: var(--accent); font-size: .7rem;
-  margin-top: 5px; flex-shrink: 0;
+  position: absolute; left: 0; top: 5px;
+  color: var(--accent); font-size: .7rem; line-height: 1.7;
 }
 
 .timeline__project { margin-bottom: 8px; }
