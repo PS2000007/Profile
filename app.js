@@ -352,10 +352,12 @@ function initCounters() {
     onEnter: () => {
       qsa('.stat__num', statsEl).forEach(el => {
         const target = +el.dataset.target;
+        const suffix = el.dataset.suffix || '';
+        const decimals = (el.dataset.target.split('.')[1] || '').length;
         gsap.to({ val: 0 }, {
           val: target, duration: 2, ease: 'power2.out',
-          onUpdate: function() { el.textContent = Math.floor(this.targets()[0].val); },
-          onComplete: () => { el.textContent = target; }
+          onUpdate: function() { el.textContent = this.targets()[0].val.toFixed(decimals); },
+          onComplete: () => { el.textContent = target + suffix; }
         });
       });
     }
@@ -1009,19 +1011,19 @@ const ORBIT_RINGS = [
     { t: 'Code-1st',  c: '#c4b5fd', full: 'Code-First Migrations' },
     { t: 'DB-1st',    c: '#93c5fd', full: 'Database-First Approach' },
     { t: 'LINQ',      c: '#a78bfa', full: 'LINQ' },
-    { t: 'ADO.NET',   c: '#93c5fd', full: 'ADO.NET' },
+    { t: 'Dapper',    c: '#93c5fd', full: 'Dapper Micro-ORM' },
     { t: 'Angular',   c: '#f87171', full: 'Angular' },
   ]},
   { frac: 1.30, dur: ORBIT_DUR, dir: 1, ringColor: '#22d3ee', phase: Math.PI / 9, chips: [   // Azure / messaging
     { t: 'Blob',      c: '#22d3ee', full: 'Azure Blob Storage' },
     { t: 'Azure Fn',  c: '#34d399', full: 'Azure Functions' },
     { t: 'Svc Bus',   c: '#22d3ee', full: 'Azure Service Bus' },
-    { t: 'Queue',     c: '#5eead4', full: 'Queue Trigger' },
+    { t: 'HTTP',      c: '#5eead4', full: 'HTTP Trigger' },
     { t: 'Timer',     c: '#34d399', full: 'Timer Trigger' },
     { t: 'App Svc',   c: '#5eead4', full: 'Azure App Services' },
   ]},
   { frac: 1.35, dur: ORBIT_DUR, dir: 1, ringColor: '#f59e0b', phase: 2 * Math.PI / 9, chips: [   // architecture / tooling
-    { t: 'CQRS',      c: '#f59e0b', full: 'CQRS' },
+    { t: 'SOLID',     c: '#f59e0b', full: 'SOLID Principles' },
     { t: 'Repo',      c: '#fbbf24', full: 'Repository Pattern' },
     { t: 'UoW',       c: '#fb923c', full: 'Unit of Work' },
     { t: 'JWT',       c: '#f472b6', full: 'JWT & RBAC Security' },
@@ -1128,7 +1130,7 @@ function buildHero() {
   const statsEl = $('heroStats');
   C.stats.forEach(s => {
     const div = mk('div', 'stat');
-    div.innerHTML = `<span class="stat__num" data-target="${s.value}">0</span><span class="stat__label">${s.label}</span>`;
+    div.innerHTML = `<span class="stat__num" data-target="${s.value}" data-suffix="${s.suffix || ''}">0</span><span class="stat__label">${s.label}</span>`;
     statsEl.appendChild(div);
   });
 }
@@ -1199,7 +1201,13 @@ function buildExperience() {
             <span class="timeline__type">${job.type}</span>
           </div>
         </div>
-        <ul class="timeline__list">${job.highlights.map(h => `<li>${h}</li>`).join('')}</ul>
+        ${job.highlights.length ? `<ul class="timeline__list">${job.highlights.map(h => `<li>${h}</li>`).join('')}</ul>` : ''}
+        ${(job.projects || []).map(p => `
+          <div class="timeline__project">
+            <h4 class="timeline__project-name">${p.name}</h4>
+            ${p.stack ? `<p class="timeline__project-stack">${p.stack}</p>` : ''}
+            <ul class="timeline__list">${p.highlights.map(h => `<li>${h}</li>`).join('')}</ul>
+          </div>`).join('')}
         <div class="timeline__tags">${job.tags.map(t => `<span>${t}</span>`).join('')}</div>
       </div>`;
     tl.appendChild(item);

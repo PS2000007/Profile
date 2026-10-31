@@ -1085,6 +1085,24 @@ button { cursor: none; }
   margin-top: 5px; flex-shrink: 0;
 }
 
+.timeline__project { margin-bottom: 8px; }
+.timeline__project + .timeline__project {
+  padding-top: 18px;
+  border-top: 1px dashed var(--border);
+}
+.timeline__project-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem; font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.timeline__project-stack {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .72rem; color: var(--accent-2);
+  margin-bottom: 12px;
+}
+.timeline__list li strong { color: var(--text); font-weight: 600; }
+
 .timeline__tags { display: flex; flex-wrap: wrap; gap: 7px; }
 .timeline__tags span {
   padding: 4px 12px;
